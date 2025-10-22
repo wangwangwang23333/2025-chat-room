@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天室</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 复古聊天室主容器 -->
+    <div class="chat-container">
+        <!-- 左侧用户列表 -->
+        <div class="user-list">
+            <div class="user-list-header">
+                <h3>在线用户 (<span id="online-count">0</span>)</h3>
+                <span class="status-indicator">●</span>
+            </div>
+            <div id="user-avatars" class="user-avatars">
+                <!-- 头像将通过JavaScript动态生成 -->
+            </div>
+        </div>
+
+        <!-- 中间聊天区域 -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <h2>聊天室</h2>
+                <div class="room-info">
+                    <span>#market-exchange</span>
+                    <span class="chat-time">1999-10-11 20:32</span>
+                    <span id="network-speed" class="network-speed">网速: 测试中...</span>
+                </div>
+            </div>
+            <div id="chat-messages" class="chat-messages">
+                <!-- 聊天消息将通过JavaScript动态生成 -->
+            </div>
+            <div class="chat-input">
+                <input type="text" id="message-input" placeholder="输入消息..." disabled>
+                <button id="send-btn" disabled>发送</button>
+                <div class="maintenance-notice">聊天室正在维护中</div>
+            </div>
+        </div>
+
+        <!-- 右侧论坛话题 -->
+        <div class="forum-topics">
+            <div class="topics-header">
+                <h3>热门话题</h3>
+            </div>
+            <div class="topics-list">
+                <div class="topic-item">
+                    <h4>美元汇率走势分析</h4>
+                    <p>近期美元指数波动明显，专家预测...</p>
+                    <span class="topic-meta">128 人参与</span>
+                </div>
+                <div class="topic-item">
+                    <h4>亚洲新兴市场机遇</h4>
+                    <p>东南亚货币表现强劲，投资机会显现...</p>
+                    <span class="topic-meta">73 人参与</span>
+                </div>
+                <div class="topic-item">
+                    <h4>游戏圈最新要闻</h4>
+                    <p>游戏行业动态频繁，贪吃蛇和连连...</p>
+                    <span class="topic-meta">21 人参与</span>
+                </div>
+            </div>
+            <div class="news-section">
+                <h3>财经要闻</h3>
+                <div class="news-list">
+                    <div class="news-item">
+                        <p>央行宣布新一轮金融市场改革措施</p>
+                        <span>2小时前</span>
+                    </div>
+                    <div class="news-item">
+                        <p>国际货币基金组织发布全球经济展望</p>
+                        <span>5小时前</span>
+                    </div>
+                    <div class="news-item">
+                        <p>国际双胞胎出生人数突破历史新高</p>
+                        <span>昨天</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 雪花噪点特效覆盖层 -->
+    <div id="noise-overlay" class="noise-overlay hidden"></div>
+    
+    <!-- 系统提示覆盖层 -->
+    <div id="system-message" class="system-message hidden">
+        <div class="message-content">
+            <p>[加密连接完成] 正在跳转至交易结算页...</p>
+        </div>
+    </div>
+
+    <!-- 底部进度条（显示已消除配对占比） -->
+    <div id="progress-container" class="progress-container">
+        <div id="progress-bar" class="progress-bar" style="width:0%"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
