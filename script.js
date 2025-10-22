@@ -719,7 +719,7 @@ function showSystemMessage() {
     
     // 2秒后跳转
     setTimeout(() => {
-        window.location.href = 'https://www.example.com'; // 替换为目标网页
+        window.location.href = 'https://wangwangwang.website/2025-real-time-sheet'; // 替换为目标网页
     }, 5000);
 }
 
