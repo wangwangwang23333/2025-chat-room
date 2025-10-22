@@ -97,6 +97,24 @@
         <div id="progress-bar" class="progress-bar" style="width:0%"></div>
     </div>
 
+    <!-- 底部用户详情面板：显示被选中角色的详细信息与历史聊天 -->
+    <div id="user-detail-panel" class="user-detail-panel hidden">
+        <div class="user-detail-header">
+            <div class="user-detail-avatar">?</div>
+            <div class="user-detail-meta">
+                <div class="user-detail-username">用户名</div>
+                <div class="user-detail-sub">等级 · 加入时间 · 状态</div>
+            </div>
+            <button id="user-detail-close" class="user-detail-close">×</button>
+        </div>
+        <div class="user-detail-body">
+            <h4>历史聊天</h4>
+            <div id="user-detail-messages" class="user-detail-messages">
+                <!-- 历史消息条目 -->
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

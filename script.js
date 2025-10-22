@@ -172,6 +172,12 @@ function generateUserAvatars() {
     
     // 使用增强的打乱算法，确保有解
     smartShuffleArray(avatarDistribution);
+    // 尝试减少相邻相同头像的情况，提升初始布局体验
+    try {
+        reduceAdjacency(avatarDistribution, 5);
+    } catch (e) {
+        // 容错：若函数不存在或出错，忽略不影响主流程
+    }
     
     // 计算可能的配对数
     const iconCounts = {};
@@ -198,7 +204,7 @@ function generateUserAvatars() {
             level: userLevel,
             joinTime: joinTime,
             messages: [],
-            online: Math.random() > 0.6 // 随机在线状态（约60%在线）
+            online: Math.random() < 0.5 // 随机在线状态（50%在线）
         };
         
         userMap.set(userId, userInfo);
@@ -253,90 +259,95 @@ function generateJoinTime() {
 // 生成聊天消息
 function generateChatMessages() {
     const chatMessagesContainer = document.getElementById('chat-messages');
-    const messageCount = 40;
 
-    // 从用户中选择一些来发送消息
-    const activeUsers = Array.from(userMap.values()).sort(() => Math.random() - 0.5).slice(0, 20);
+    // 清空旧消息
+    chatMessagesContainer.innerHTML = '';
 
-    // 生成按顺序递增的时间（从10:00开始，每次递增1-5分钟）
+    // 保证消息数量至少覆盖所有用户，确保每个人至少有一句话
+    const allUsers = Array.from(userMap.values());
+    const userCount = allUsers.length;
+    const baseMessageCount = 40;
+    const messageCount = Math.max(baseMessageCount, userCount);
+
+    // 重置每个用户的消息记录
+    allUsers.forEach(u => u.messages = []);
+
+    // 时间序列
     let currentHour = 10;
     let currentMinute = 0;
 
-    // 生成消息并按时间排序
-    const messages = [];
-
-    // 重置已使用的消息模板集合
+    // 重置已使用模板集合
     usedMessageTemplates.clear();
 
-    // 优先使用 mandatoryMessageTemplates（确保全部使用完毕，但随机顺序）
-    const mandatoryShuffled = [...mandatoryMessageTemplates].sort(() => Math.random() - 0.5);
-    let generated = 0;
+    // 准备模板池
+    const mandatoryPool = [...mandatoryMessageTemplates].sort(() => Math.random() - 0.5);
+    const chatPool = [...chatTemplates].sort(() => Math.random() - 0.5);
 
-    // 先把 mandatory 模板全部尽可能地分配到消息中
-    for (let i = 0; i < mandatoryShuffled.length && generated < messageCount; i++) {
-        const template = mandatoryShuffled[i];
-        usedMessageTemplates.add(template);
-        const user = activeUsers[Math.floor(Math.random() * activeUsers.length)];
-        const messageId = `msg_${generated}`;
+    const messages = [];
+    let nextId = 0;
 
-        // 时间递增
-        currentMinute += Math.floor(Math.random() * 5) + 1;
-        if (currentMinute >= 60) {
-            currentHour++;
-            currentMinute -= 60;
-        }
-
-        const time = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
-
-        messages.push({ user, template, messageId, time, timestamp: currentHour * 60 + currentMinute });
-        generated++;
-    }
-
-    // 剩余位置使用 chatTemplates（尽量不重复，若模板不够则允许重复）
-    const remainingToGenerate = messageCount - generated;
-    const chatPool = [...chatTemplates];
-    // 先打乱 chatTemplates
-    chatPool.sort(() => Math.random() - 0.5);
-
-    for (let i = 0; i < remainingToGenerate; i++) {
+    // 首先确保每位用户至少有一条消息，按随机用户顺序分配
+    const usersShuffled = [...allUsers].sort(() => Math.random() - 0.5);
+    for (const user of usersShuffled) {
+        // 选择模板：优先用 mandatory，其次未用过的 chatTemplate，再允许重复
         let template = null;
-
-        // 优先选择未使用过的 chatTemplates
-        const unusedChat = chatPool.filter(t => !usedMessageTemplates.has(t));
-        if (unusedChat.length > 0) {
-            template = unusedChat[Math.floor(Math.random() * unusedChat.length)];
+        if (mandatoryPool.length > 0) {
+            template = mandatoryPool.shift();
             usedMessageTemplates.add(template);
         } else {
-            // 当所有模板都用过后，允许重复选择
-            template = chatPool[Math.floor(Math.random() * chatPool.length)];
+            const unused = chatPool.filter(t => !usedMessageTemplates.has(t));
+            if (unused.length > 0) {
+                template = unused[Math.floor(Math.random() * unused.length)];
+                usedMessageTemplates.add(template);
+            } else {
+                template = chatPool[Math.floor(Math.random() * chatPool.length)];
+            }
         }
 
-        const user = activeUsers[Math.floor(Math.random() * activeUsers.length)];
-        const messageId = `msg_${generated}`;
-
-        // 时间递增
+        const messageId = `msg_${nextId++}`;
         currentMinute += Math.floor(Math.random() * 5) + 1;
-        if (currentMinute >= 60) {
-            currentHour++;
-            currentMinute -= 60;
-        }
-
+        if (currentMinute >= 60) { currentHour++; currentMinute -= 60; }
         const time = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
 
         messages.push({ user, template, messageId, time, timestamp: currentHour * 60 + currentMinute });
-        generated++;
     }
-    
-    // 按时间排序消息
+
+    // 填充剩余消息到总数
+    while (messages.length < messageCount) {
+        // 模板选择优先级同上
+        let template = null;
+        if (mandatoryPool.length > 0) {
+            template = mandatoryPool.shift();
+            usedMessageTemplates.add(template);
+        } else {
+            const unused = chatPool.filter(t => !usedMessageTemplates.has(t));
+            if (unused.length > 0) {
+                template = unused[Math.floor(Math.random() * unused.length)];
+                usedMessageTemplates.add(template);
+            } else {
+                template = chatPool[Math.floor(Math.random() * chatPool.length)];
+            }
+        }
+
+        const user = allUsers[Math.floor(Math.random() * allUsers.length)];
+        const messageId = `msg_${nextId++}`;
+        currentMinute += Math.floor(Math.random() * 5) + 1;
+        if (currentMinute >= 60) { currentHour++; currentMinute -= 60; }
+        const time = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+
+        messages.push({ user, template, messageId, time, timestamp: currentHour * 60 + currentMinute });
+    }
+
+    // 按时间排序
     messages.sort((a, b) => a.timestamp - b.timestamp);
-    
-    // 创建DOM元素
+
+    // 创建 DOM 并记录消息到对应用户
     messages.forEach(msg => {
         const messageElement = document.createElement('div');
         messageElement.className = 'chat-message';
         messageElement.dataset.userId = msg.user.id;
         messageElement.dataset.messageId = msg.messageId;
-        
+
         messageElement.innerHTML = `
             <div class="message-header">
                 <div class="message-avatar">${msg.user.icon}</div>
@@ -345,9 +356,9 @@ function generateChatMessages() {
             </div>
             <div class="message-content">${msg.template}</div>
         `;
-        
+
         chatMessagesContainer.appendChild(messageElement);
-        
+
         // 记录消息
         msg.user.messages.push(msg.messageId);
         messageMap.set(msg.messageId, messageElement);
@@ -523,6 +534,10 @@ function handleAvatarClick(event) {
         clickedAvatar.style.borderColor = '#ff00ff';
         clickedAvatar.style.backgroundColor = '#000080';
         clickedAvatar.classList.add('selected');
+
+        // 在底部显示该角色的详细信息
+        showUserDetail(userId);
+
         return;
     }
     
@@ -598,9 +613,62 @@ function handleAvatarClick(event) {
             }
             // 已经给 clickedAvatar 添加了选中样式，保持它为选中，并将其作为新的 selectedAvatar
             selectedAvatar = clickedAvatar;
+
+            // TODO： 在左下角显示对应角色的详细信息
+            // 在底部显示该角色的详细信息
+            showUserDetail(userId);
         }
     }, 300);
 }
+
+    // 显示用户详情面板并填充信息与历史消息
+    function showUserDetail(userId) {
+        const panel = document.getElementById('user-detail-panel');
+        if (!panel) return;
+        const user = userMap.get(userId);
+        if (!user) return;
+
+        // 填充头像与基本信息
+        const avatarEl = panel.querySelector('.user-detail-avatar');
+        const usernameEl = panel.querySelector('.user-detail-username');
+        const subEl = panel.querySelector('.user-detail-sub');
+        const messagesEl = panel.querySelector('#user-detail-messages');
+
+        if (avatarEl) avatarEl.textContent = user.icon || '?';
+        if (usernameEl) usernameEl.textContent = user.username || user.id;
+        if (subEl) subEl.textContent = `等级 ${user.level} · ${user.joinTime} · ${user.online ? '在线' : '离线'}`;
+
+        // 填充历史消息（优先使用 messageMap 中的 DOM 内容）
+        if (messagesEl) {
+            messagesEl.innerHTML = '';
+            // 遍历用户的消息ID，按记录顺序显示
+            (user.messages || []).forEach(mid => {
+                if (messageMap.has(mid)) {
+                    const msgEl = messageMap.get(mid);
+                    // 克隆一份以避免对原消息DOM造成影响
+                    const clone = msgEl.cloneNode(true);
+                    clone.classList.remove('highlight');
+                    clone.classList.add('user-detail-item');
+                    messagesEl.appendChild(clone);
+                }
+            });
+            // 如果没有找到任何消息，显示占位文本
+            if (messagesEl.children.length === 0) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'user-detail-empty';
+                placeholder.textContent = '该用户尚无历史聊天或消息已被清理。';
+                messagesEl.appendChild(placeholder);
+            }
+        }
+
+        panel.classList.remove('hidden');
+    }
+
+    function hideUserDetail() {
+        const panel = document.getElementById('user-detail-panel');
+        if (!panel) return;
+        panel.classList.add('hidden');
+    }
 
 // 更新显示时间，同步分钟部分
 function updateDisplayTime() {
@@ -652,7 +720,7 @@ function showSystemMessage() {
     // 2秒后跳转
     setTimeout(() => {
         window.location.href = 'https://www.example.com'; // 替换为目标网页
-    }, 2000);
+    }, 5000);
 }
 
 // 增强版打乱数组顺序，确保连连看有解
@@ -707,6 +775,71 @@ function ensureSolvable(array) {
             }
         }
     });
+}
+
+// 尝试减少相邻（上下左右）相同图标的情况，best-effort，避免无限循环
+function reduceAdjacency(array, cols = 5) {
+    const rows = Math.ceil(array.length / cols);
+    const maxAttempts = 5000;
+    let attempts = 0;
+
+    function neighborsEqual(idx1, idx2) {
+        if (idx1 < 0 || idx2 < 0 || idx1 >= array.length || idx2 >= array.length) return false;
+        return array[idx1] === array[idx2];
+    }
+
+    // 计算邻居索引（上、下、左、右）
+    function neighborIndices(index) {
+        const r = Math.floor(index / cols);
+        const c = index % cols;
+        const list = [];
+        if (r > 0) list.push((r-1)*cols + c);
+        if (r < rows - 1) list.push((r+1)*cols + c);
+        if (c > 0) list.push(r*cols + (c-1));
+        if (c < cols - 1) list.push(r*cols + (c+1));
+        return list.filter(i => i >= 0 && i < array.length);
+    }
+
+    // 尝试多次随机化和局部交换，减少相邻相同数目
+    let best = array.slice();
+    let bestScore = Infinity;
+
+    function adjacencyScore(arr) {
+        let score = 0;
+        for (let i = 0; i < arr.length; i++) {
+            const neigh = neighborIndices(i);
+            for (const ni of neigh) {
+                if (arr[i] === arr[ni]) score++;
+            }
+        }
+        return score;
+    }
+
+    bestScore = adjacencyScore(array);
+
+    while (attempts < maxAttempts && bestScore > 0) {
+        attempts++;
+        // 随机选择两个索引尝试交换
+        const i = Math.floor(Math.random() * array.length);
+        const j = Math.floor(Math.random() * array.length);
+        if (i === j) continue;
+
+        // 交换并评估分数
+        [array[i], array[j]] = [array[j], array[i]];
+        const score = adjacencyScore(array);
+        if (score < bestScore) {
+            bestScore = score;
+            best = array.slice();
+            // 早停：如果达成完全无邻接，退出
+            if (bestScore === 0) break;
+        } else {
+            // 回滚
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    // 应用最优结果
+    for (let k = 0; k < array.length; k++) array[k] = best[k];
 }
 
 // 测试网速并显示（纯随机模拟，不断波动）
@@ -764,7 +897,7 @@ function updateOnlineCount() {
 // 更新用户状态：基于剩余未匹配头像数量动态调整在线概率，避免游戏在剩余组合时被卡住
 function updateUserStatuses() {
     // 参数：基础在线概率与提升策略
-    const baseProb = 0.7; // 基准 70%
+    const baseProb = 0.5; // 基准 50%（初始较低，随剩余减少提升）
     const minRemainingForMax = 2; // 当剩余头像非常少时（最小为2个）应接近100%
     const boostThreshold = 20; // 当剩余头像 <= 20 时开始提升在线概率
 
@@ -780,7 +913,7 @@ function updateUserStatuses() {
         // t 从 0（clamped == minRemainingForMax）到 1（clamped == boostThreshold）
         const t = (clamped - minRemainingForMax) / Math.max(1, (boostThreshold - minRemainingForMax));
         // 插值：当 t = 1 -> 无提升；当 t = 0 -> 最大提升
-        const maxProb = 0.99;
+        const maxProb = 1.0; // 最终可以达到 100%
         onlineProb = Math.min(maxProb, baseProb + (maxProb - baseProb) * (1 - t));
     }
 
@@ -824,15 +957,15 @@ function startUserStatusMonitoring() {
     // 每10-20秒随机切换用户状态
     function changeStatusWithRandomInterval() {
         updateUserStatuses();
-        // 设置下一次执行的随机时间间隔（10-20秒）
-        const nextInterval = Math.floor(Math.random() * 10000) + 10000;
+        // 设置下一次执行的随机时间间隔（6-12秒）
+        const nextInterval = Math.floor(Math.random() * 6000) + 6000;
         statusChangeInterval = setTimeout(changeStatusWithRandomInterval, nextInterval);
     }
     
     // 立即执行一次
     updateUserStatuses();
     // 设置第一次间隔
-    const initialInterval = Math.floor(Math.random() * 10000) + 10000;
+    const initialInterval = Math.floor(Math.random() * 6000) + 6000;
     statusChangeInterval = setTimeout(changeStatusWithRandomInterval, initialInterval);
 }
 
@@ -905,4 +1038,12 @@ window.addEventListener('load', () => {
             clearInterval(statusChangeInterval);
         }
     });
+
+    // 绑定用户详情面板关闭按钮
+    const detailClose = document.getElementById('user-detail-close');
+    if (detailClose) {
+        detailClose.addEventListener('click', () => {
+            hideUserDetail();
+        });
+    }
 });
